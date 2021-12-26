@@ -211,7 +211,19 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        #(D,)
+        x_mean = x.mean(axis=0);
+        #(D,)
+        x_var = x.var(axis=0);
+        #(D,)
+        x_var_stand = np.sqrt(x_var + eps);
+        #use broadcast to cal
+        #element wise operator
+        out = gamma * ((x - x_mean) / x_var_stand) + beta;
+        cache = (x, gamma, beta, eps, x_mean, x_var, x_var_stand);
+        
+        running_mean = momentum * running_mean + (1 - momentum) * x_mean;
+        running_var = momentum * running_var + (1 - momentum) * x_var;
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -225,8 +237,9 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # Store the result in the out variable.                               #
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
+        
+        out = gamma * ((x - running_mean) / np.sqrt(running_var+eps)) + beta;
+        #don't need cache for test
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -268,7 +281,24 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x,gamma,beta,eps,x_mean,x_var,x_var_stand_eps = cache;
+    N,D = dout.shape;
+    #gamma * x_hat + beta = out
+    #(N,D) 
+    dx_hat = dout * gamma;
+    
+    #(D,)
+    #dout'|dx_hat * dx_hat'|dx_var
+    dx_var = np.sum(dx_hat * (x - x_mean) * (-1/2) * ((x_var+eps) ** (-3/2)), axis=0)
+    
+    #(D,)
+    #dout'|dx_hat * dx_hat'|dx_mean
+    dx_mean = np.sum(dx_hat * (-1 / x_var_stand_eps), axis=0) + dx_var * (1/N) * (-2) * np.sum(x - x_mean, axis=0);
+    
+    dx = dx_hat * 1 / x_var_stand_eps + dx_var * 2 * (x - x_mean) / N + dx_mean * 1 / N
+    x_hat = (x - x_mean) / x_var_stand_eps
+    dgamma = np.sum(dout * x_hat, axis=0);
+    dbeta = np.sum(dout, axis=0);
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -314,8 +344,18 @@ def layernorm_forward(x, gamma, beta, ln_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
-
+    #x : (N,D)
+    #(N,)
+    x_T = x.T;
+    x_T_mean = x_T.mean(axis=0);
+    #(N,)
+    x_T_var = x_T.var(axis=0);
+    #(N,)
+    x_T_var_stand_eps = np.sqrt(x_T_var + eps);
+    
+    out = gamma * ((x_T - x_T_mean) / x_T_var_stand_eps).T + beta;
+#     out = out.T
+    cache = (x, gamma, beta, eps, x_T_mean, x_T_var, x_T_var_stand_eps);
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -349,8 +389,29 @@ def layernorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
-
+    x,gamma,beta,eps,x_T_mean,x_T_var,x_T_var_stand_eps = cache;
+    x_T = x.T
+    dout_T = dout.T
+    N,D = dout.shape;
+    #gamma * x_hat + beta = out
+    #(N,D) 
+    dx_hat = dout * gamma;
+    dx_hat_T = dx_hat.T
+    
+    #(D,)
+    #dout'|dx_hat * dx_hat'|dx_var
+    dx_var = np.sum(dx_hat_T * (x_T - x_T_mean) * (-1/2) * ((x_T_var+eps) ** (-3/2)), axis=0)
+    
+    #(D,)
+    #dout'|dx_hat * dx_hat'|dx_mean
+    dx_mean = np.sum(dx_hat_T * (-1 / x_T_var_stand_eps), axis=0) + dx_var * (1/D) * (-2) * np.sum(x_T - x_T_mean, axis=0);
+    
+    dx = dx_hat_T * 1 / x_T_var_stand_eps + dx_var * 2 * (x_T - x_T_mean) / D + dx_mean / D
+    dx = dx.T
+    x_hat = ((x_T - x_T_mean) / x_T_var_stand_eps).T
+    dgamma = np.sum(dout * x_hat, axis=0);
+    dbeta = np.sum(dout, axis=0);
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
