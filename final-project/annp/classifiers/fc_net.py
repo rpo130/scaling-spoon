@@ -55,7 +55,10 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        self.params['W1'] = np.random.normal(scale = weight_scale, size = (input_dim, hidden_dim))
+        self.params['b1'] = np.zeros(hidden_dim)
+        self.params['W2'] = np.random.normal(scale = weight_scale, size = (hidden_dim, num_classes))
+        self.params['b2'] = np.zeros(num_classes)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -88,7 +91,9 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        out1, cache1 = affine_relu_forward(X, self.params['W1'], self.params['b1'])
+        out2, cache2 = affine_forward(out1, self.params['W2'], self.params['b2'])
+        scores = out2;
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -113,7 +118,18 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        loss, dscores = softmax_loss(scores, y)
+        loss += 0.5 * self.reg * np.sum(self.params['W1']**2) + 0.5 * self.reg * np.sum(self.params['W2']**2)
+        
+        #dscores 不包含正则求导部分
+        dx, dw, db = affine_backward(dscores, cache2)
+        dout1 = dx;
+        grads['W2'] = dw + self.reg*self.params['W2']
+        grads['b2'] = db;
+
+        dx, dw, db = affine_relu_backward(dout1, cache1)
+        grads['W1'] = dw + self.reg*self.params['W1']
+        grads['b1'] = db
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -192,8 +208,28 @@ class FullyConnectedNet(object):
         # parameters should be initialized to zeros.                               #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        
+        for i in range(0,self.num_layers):
+            if i == 0:
+                pre_lay_num = input_dim;
+            else:
+                pre_lay_num = hidden_dims[i-1]
+                
+            if i == self.num_layers-1:
+                current_lay_num = num_classes
+            else:
+                current_lay_num = hidden_dims[i]
+            
+            self.params['W' + str(i+1)] = np.random.normal(scale = weight_scale, size = (pre_lay_num, current_lay_num))
+            self.params['b' + str(i+1)] = np.zeros(current_lay_num)
 
-        pass
+
+        if self.normalization == "batchnorm":
+            #relu layer num : self.num_layers - 1
+            #最后一层不做relu          
+            for i in range(0,self.num_layers-1):
+                self.params['gamma' + str(i+1)] = np.ones(hidden_dims[i])
+                self.params['beta' + str(i+1)] = np.zeros(hidden_dims[i])
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -255,7 +291,21 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        x_list = [X]
+        cache_list = [None]
+
+        for i in range(0,self.num_layers-1):
+            if self.normalization == "batchnorm":
+                a, cache = affine_bn_relu_forward(x_list[i], self.params['W' + str(i+1)], self.params['b' + str(i+1)], self.params['gamma'+str(i+1)], self.params['beta'+str(i+1)], self.bn_params[i])
+            else:           
+                a, cache = affine_relu_forward(x_list[i], self.params['W' + str(i+1)], self.params['b' + str(i+1)])
+            
+            x_list.append(a);
+            cache_list.append(cache);
+        #final layer
+        scores, cacheF = affine_forward(x_list[self.num_layers-1], self.params['W' + str(self.num_layers)], self.params['b' + str(self.num_layers)])
+        x_list.append(scores);
+        cache_list.append(cacheF);
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -281,8 +331,30 @@ class FullyConnectedNet(object):
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        #没有regu
+        loss, dx = softmax_loss(scores, y);
+        #add regu
+        for i in range(self.num_layers, 0, -1) :
+            loss += 0.5 * self.reg * np.sum(self.params['W' + str(i)]**2)
         
-        pass
+        dx,dw,db = affine_backward(dx, cache_list[self.num_layers])
+        #cache : x w b
+        grads['W' + str(self.num_layers)] = dw + self.reg * cache_list[self.num_layers][1]
+        grads['b' + str(self.num_layers)] = db
+
+        
+        if self.normalization == "batchnorm":
+            for i in range(self.num_layers-1, 0, -1) :
+                dx,dw,db,dgamma,dbeta = affine_bn_relu_backward(dx, cache_list[i])
+                grads['W' + str(i)] = dw + self.reg * cache_list[i][0][1]
+                grads['b' + str(i)] = db
+                grads['gamma' + str(i)] = dgamma
+                grads['beta' + str(i)] = dbeta 
+        else:    
+            for i in range(self.num_layers-1, 0, -1) :
+                dx,dw,db = affine_relu_backward(dx, cache_list[i])
+                grads['W' + str(i)] = dw + self.reg * cache_list[i][0][1]
+                grads['b' + str(i)] = db
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################

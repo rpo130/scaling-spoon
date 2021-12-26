@@ -27,8 +27,12 @@ def affine_forward(x, w, b):
     # will need to reshape the input into rows.                               #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
+    
+    N = x.shape[0];
+    #(N,D)
+    x_NxD = x.reshape(N, -1)
+    #b is broadcast
+    out = x_NxD.dot(w) + b
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -61,7 +65,19 @@ def affine_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # x * w + b = out
+    #x', dx * w = dout => dx = dout * w.T
+    dx_NxD = dout.dot(w.T)
+    dx = dx_NxD.reshape(x.shape)
+    #w', x * dw = dout => dw = x.T * dout
+    N = x.shape[0]
+    x_NxD = x.reshape(N, -1)
+    #(D,M)
+    dw = x_NxD.T.dot(dout);
+    #b', db = dout
+    dout_single = np.sum(dout, axis=0)
+    #(M,)
+    db = dout_single;
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -87,7 +103,7 @@ def relu_forward(x):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out = np.maximum(0, x)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -114,7 +130,8 @@ def relu_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    dx = dout;
+    dx[x < 0] = 0 
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################

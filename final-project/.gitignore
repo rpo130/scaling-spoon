@@ -1,0 +1,7 @@
+.ipynb_checkpoints/
+**/*.pyc
+**/__pycache__/*
+annp/build/*
+annp/datasets/*
+annp/im2col_cython.c
+annp/im2col_cython.*.pyd
