@@ -230,6 +230,12 @@ class FullyConnectedNet(object):
             for i in range(0,self.num_layers-1):
                 self.params['gamma' + str(i+1)] = np.ones(hidden_dims[i])
                 self.params['beta' + str(i+1)] = np.zeros(hidden_dims[i])
+                
+        if self.normalization == "layernorm":
+            for i in range(0,self.num_layers-1):
+                self.params['gamma' + str(i+1)] = np.ones(hidden_dims[i])
+                self.params['beta' + str(i+1)] = np.zeros(hidden_dims[i])
+            
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -297,6 +303,8 @@ class FullyConnectedNet(object):
         for i in range(0,self.num_layers-1):
             if self.normalization == "batchnorm":
                 a, cache = affine_bn_relu_forward(x_list[i], self.params['W' + str(i+1)], self.params['b' + str(i+1)], self.params['gamma'+str(i+1)], self.params['beta'+str(i+1)], self.bn_params[i])
+            elif self.normalization == "layernorm":
+                a, cache = affine_ln_relu_forward(x_list[i], self.params['W' + str(i+1)], self.params['b' + str(i+1)], self.params['gamma'+str(i+1)], self.params['beta'+str(i+1)], self.bn_params[i])
             else:           
                 a, cache = affine_relu_forward(x_list[i], self.params['W' + str(i+1)], self.params['b' + str(i+1)])
             
@@ -346,6 +354,13 @@ class FullyConnectedNet(object):
         if self.normalization == "batchnorm":
             for i in range(self.num_layers-1, 0, -1) :
                 dx,dw,db,dgamma,dbeta = affine_bn_relu_backward(dx, cache_list[i])
+                grads['W' + str(i)] = dw + self.reg * cache_list[i][0][1]
+                grads['b' + str(i)] = db
+                grads['gamma' + str(i)] = dgamma
+                grads['beta' + str(i)] = dbeta 
+        elif self.normalization == "layernorm":
+            for i in range(self.num_layers-1, 0, -1) :
+                dx,dw,db,dgamma,dbeta = affine_ln_relu_backward(dx, cache_list[i])
                 grads['W' + str(i)] = dw + self.reg * cache_list[i][0][1]
                 grads['b' + str(i)] = db
                 grads['gamma' + str(i)] = dgamma
